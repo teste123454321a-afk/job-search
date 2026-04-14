@@ -21,16 +21,18 @@ ALERT_RECIPIENT = os.environ.get("ALERT_RECIPIENT", "") or SMTP_EMAIL
 SEEN_JOBS_FILE = "seen_jobs.json"
 
 KEYWORDS = [
-    "data scientist",
     "analytics engineer",
     "data engineer",
-    "machine learning",
-    "ai",
-    "nlp",
-    "semantic layer",
-    "llm",
-    "bi engineer",
     "data platform",
+    "data infrastructure",
+    "semantic layer",
+    "nl2sql",
+    "dbt",
+    "llm",
+    "ai engineer",
+    "applied scientist",
+    "machine learning engineer",
+    "ai product",
 ]
 
 EXCLUDE_KEYWORDS = [
@@ -40,6 +42,8 @@ EXCLUDE_KEYWORDS = [
     "head of sales",
     "account executive",
     "marketing",
+    "accounting",
+    "sales",
 ]
 
 HEADERS = {
