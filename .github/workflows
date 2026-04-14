@@ -29,8 +29,9 @@ jobs:
 
       - name: Run scraper
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SMTP_EMAIL: ${{ secrets.SMTP_EMAIL }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ALERT_RECIPIENT: ${{ secrets.ALERT_RECIPIENT }}
         run: python job_scraper.py
 
       - name: Save seen jobs cache
