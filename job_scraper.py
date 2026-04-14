@@ -7,14 +7,17 @@ Sends Telegram alerts for new matches
 import os
 import json
 import hashlib
+import smtplib
 import requests
+from email.mime.text import MIMEText
 from bs4 import BeautifulSoup
 from datetime import datetime
 from pathlib import Path
 
 # --- Config ---
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+SMTP_EMAIL = os.environ.get("SMTP_EMAIL", "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+ALERT_RECIPIENT = os.environ.get("ALERT_RECIPIENT", "") or SMTP_EMAIL
 SEEN_JOBS_FILE = "seen_jobs.json"
 
 KEYWORDS = [
@@ -163,33 +166,45 @@ def scrape_wttj() -> list[dict]:
     return jobs
 
 
-# --- Telegram ---
-def send_telegram(message: str):
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("Telegram not configured, printing instead:")
-        print(message)
+# --- Email ---
+def send_email(subject: str, body: str):
+    if not SMTP_EMAIL or not SMTP_PASSWORD:
+        print("Email not configured, printing instead:")
+        print(subject)
+        print(body)
         return
 
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    requests.post(url, json={
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": message,
-        "parse_mode": "Markdown",
-        "disable_web_page_preview": False,
-    })
+    msg = MIMEText(body, "html")
+    msg["Subject"] = subject
+    msg["From"] = SMTP_EMAIL
+    msg["To"] = ALERT_RECIPIENT
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        smtp.login(SMTP_EMAIL, SMTP_PASSWORD)
+        smtp.send_message(msg)
+    print(f"Email sent to {ALERT_RECIPIENT}")
 
 
-def format_job_message(jobs: list[dict]) -> str:
-    lines = [f"🔍 *{len(jobs)} new job match{'es' if len(jobs) > 1 else ''}*\n"]
+def format_job_message(jobs: list[dict]) -> tuple[str, str]:
+    subject = f"🔍 {len(jobs)} new job match{'es' if len(jobs) > 1 else ''}"
+    rows = ""
     for job in jobs:
         source_emoji = "🚀" if job["source"] == "YC" else "🌴"
-        lines.append(
-            f"{source_emoji} *{job['title']}*\n"
-            f"   {job['company']}\n"
-            f"   [{job['source']}]({job['url']})\n"
-        )
-    lines.append(f"\n_Checked at {datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC_")
-    return "\n".join(lines)
+        rows += f"""
+        <tr>
+            <td style="padding:8px 0">{source_emoji} <strong>{job['title']}</strong><br>
+            <span style="color:#666">{job['company']}</span><br>
+            <a href="{job['url']}">{job['source']} →</a></td>
+        </tr>"""
+
+    body = f"""
+    <html><body style="font-family:sans-serif;max-width:600px;margin:auto">
+        <h2>🔍 {len(jobs)} new job match{'es' if len(jobs) > 1 else ''}</h2>
+        <table width="100%">{rows}</table>
+        <p style="color:#999;font-size:12px">Checked {datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC</p>
+    </body></html>"""
+
+    return subject, body
 
 
 # --- Main ---
@@ -210,8 +225,8 @@ def main():
     print(f"{len(new_jobs)} new jobs")
 
     if new_jobs:
-        message = format_job_message(new_jobs)
-        send_telegram(message)
+        subject, body = format_job_message(new_jobs)
+        send_email(subject, body)
     else:
         print("No new matches, nothing sent")
 
